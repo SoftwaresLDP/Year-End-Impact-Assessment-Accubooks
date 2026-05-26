@@ -597,6 +597,34 @@
   body.mode-mgr-blocked .stepper,
   body.mode-mgr-blocked .sendback-callout,
   body.mode-mgr-blocked .role-toggle { display: none !important; }
+  /* Amend: manager editing a finalised review. Behaves like manager mode but
+     hides the send-back path (review is past send-back stage) and the save-later
+     button (the edit is single-shot, no draft autosave needed). */
+  body.mode-amend .section.self-only input,
+  body.mode-amend .section.self-only select,
+  body.mode-amend .section.self-only textarea {
+    pointer-events: none; background: var(--surface-warm); color: var(--text2);
+  }
+  body.mode-amend .section.self-only .btn-add,
+  body.mode-amend .section.self-only .obj-remove { display: none; }
+  body.mode-amend .email-compound,
+  body.mode-amend input#fname,
+  body.mode-amend input#fdept,
+  body.mode-amend input#frole { pointer-events: none; background: var(--surface-warm); color: var(--text2); }
+  body.mode-amend #send-back-btn,
+  body.mode-amend .btn-save-later,
+  body.mode-amend .draft-indicator { display: none !important; }
+  body.mode-amend .amend-callout { display: block !important; }
+  .amend-callout {
+    background: var(--accent-light, #EAF1F7);
+    border: 1.5px solid var(--accent);
+    color: var(--accent);
+  }
+  .amend-callout .sb-message { color: var(--text); border-color: var(--accent); }
+  /* Modal helpers — the existing send-back styles handle base modal CSS, this
+     just ensures the amend modal participates in show/backdrop the same way. */
+  #amend-modal.show, body.amend-open .modal-backdrop { display: block; }
+  #amend-modal.show { display: block; }
 
   /* ---------- Send-back callout (edit view) ---------- */
   .sendback-callout {
@@ -1110,6 +1138,17 @@
       <div class="sb-message" id="sb-message-text"></div>
     </div>
 
+    <!-- Amend banner (shown only in amend view — manager editing a finalised review) -->
+    <div class="sendback-callout amend-callout" id="amend-callout" style="display:none;">
+      <div class="sb-title">
+        <svg viewBox="0 0 24 24"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+        Editing finalised review
+      </div>
+      <div class="sb-message">
+        You're editing a review that has already been submitted. Saving will overwrite the previous ratings and notify the employee by email with the reason you provide.
+      </div>
+    </div>
+
     <!-- Demo banner (shown only when reviewer side is selected without an email token) -->
     <div class="demo-banner" id="demo-banner" style="display:none;">
       <div class="db-icon">
@@ -1404,7 +1443,8 @@
     <!-- Manager-blocked view (shown when the manager opens a link whose review is
          no longer finalisable: recalled by employee, already finalised, or already
          sent back. Prevents the manager from wasting time filling out a form that
-         can't be submitted, and explains why.) -->
+         can't be submitted, and explains why. For 'complete' status the card
+         also surfaces an "Edit this review" button that routes to ?view=amend. -->
     <div class="card" id="mgr-blocked-card" style="display:none;">
       <div class="conf-ic" id="mgr-blocked-ic">
         <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
@@ -1414,6 +1454,12 @@
       <div class="conf-link-box" id="mgr-blocked-meta-box" style="display:none;">
         <div class="cl-label">Employee</div>
         <div class="cl-url" id="mgr-blocked-emp">—</div>
+      </div>
+      <div class="conf-actions" id="mgr-blocked-actions" style="display:none; margin-top:18px;">
+        <button type="button" class="btn-primary" id="mgr-blocked-edit-btn" style="width:auto;">
+          <svg viewBox="0 0 24 24"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+          Edit this review
+        </button>
       </div>
     </div>
 
@@ -1448,6 +1494,25 @@
       <button type="button" class="btn-warn" id="sendback-confirm">
         <svg viewBox="0 0 24 24"><path d="M3 10h18M3 14h18M7 7l-4 3 4 3M17 17l4-3-4-3"/></svg>
         Send back
+      </button>
+    </div>
+  </div>
+
+  <!-- Amend reason modal — shown when manager clicks "Save changes" in amend view. -->
+  <div class="modal" id="amend-modal" role="dialog" aria-labelledby="amend-modal-title">
+    <div class="modal-head">
+      <h3 id="amend-modal-title">Reason for editing this review</h3>
+      <p>A short note for the audit log (HR can see it) and for the email the employee will receive.</p>
+    </div>
+    <div class="modal-body">
+      <textarea id="amend-reason" placeholder="e.g., Corrected timeliness rating from 3 to 4 after revisiting Q4 timesheets." minlength="5"></textarea>
+      <div class="field-err" id="amend-err" style="display:none; color: var(--danger); font-size: 11.5px; margin-top: 6px;">Please include at least a short explanation (5+ characters).</div>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn-secondary" id="amend-cancel">Cancel</button>
+      <button type="button" class="btn-primary" id="amend-confirm">
+        <svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>
+        Save changes &amp; notify employee
       </button>
     </div>
   </div>
@@ -1666,7 +1731,15 @@
   document.getElementById('send-back-btn').addEventListener('click', openSendBackModal);
   document.getElementById('sendback-cancel').addEventListener('click', closeSendBackModal);
   document.getElementById('sendback-confirm').addEventListener('click', confirmSendBack);
-  document.getElementById('modal-backdrop').addEventListener('click', closeSendBackModal);
+  // Backdrop closes whichever modal is currently open.
+  document.getElementById('modal-backdrop').addEventListener('click', function () {
+    closeSendBackModal();
+    closeAmendModal();
+  });
+
+  // Amend (post-finalisation edit) modal
+  document.getElementById('amend-cancel').addEventListener('click', closeAmendModal);
+  document.getElementById('amend-confirm').addEventListener('click', confirmAmend);
 
   // Confirmation view buttons
   document.getElementById('conf-copy-btn').addEventListener('click', copyStatusLink);
@@ -1769,7 +1842,7 @@
   }
 
   function setBodyMode(mode) {
-    document.body.classList.remove('mode-submit','mode-manager','mode-status','mode-edit','mode-confirmation','mode-mgr-blocked');
+    document.body.classList.remove('mode-submit','mode-manager','mode-status','mode-edit','mode-confirmation','mode-mgr-blocked','mode-amend');
     document.body.classList.add('mode-' + mode);
     currentMode = mode;
   }
@@ -1817,6 +1890,22 @@
       prefillSelf(currentReview);
       showSendBackCallout(currentReview);
       document.getElementById('submit-btn-label').textContent = 'Resubmit to manager';
+      return;
+    }
+    if (view === 'amend') {
+      // Manager amending a finalised review. Only valid if status is 'complete'
+      // — otherwise fall back to the blocked card so we never let the manager
+      // edit a draft/pending row this way.
+      if (currentReview.status !== 'complete') {
+        renderManagerBlocked(currentReview);
+        return;
+      }
+      setBodyMode('amend');
+      setRole('manager');
+      prefillSelf(currentReview);
+      prefillManager(currentReview);
+      document.getElementById('amend-callout').style.display = 'block';
+      document.getElementById('submit-btn-label').textContent = 'Save changes';
       return;
     }
     // Manager URL but the review is in a terminal/non-finalisable state.
@@ -1960,9 +2049,22 @@
     } else if (review.status === 'complete') {
       titleEl.textContent = 'Review already finalised';
       msgEl.innerHTML = 'This review has already been submitted. ' +
-        'No further action is needed from you.';
+        'Need to correct a rating or comment? You can edit it below — the employee will get an email letting them know.';
       iconEl.style.background = 'var(--accent-light, var(--surface-warm))';
       iconEl.style.color = 'var(--accent)';
+      // Surface the "Edit this review" CTA only for finalised reviews.
+      const actions = document.getElementById('mgr-blocked-actions');
+      const editBtn = document.getElementById('mgr-blocked-edit-btn');
+      if (actions && editBtn) {
+        actions.style.display = 'flex';
+        editBtn.onclick = function () {
+          // Re-route to the same review URL with ?view=amend so routeView picks up the amend flow.
+          const u = new URL(location.href);
+          u.searchParams.set('review', review.reviewId);
+          u.searchParams.set('view', 'amend');
+          location.href = u.toString();
+        };
+      }
     } else {
       titleEl.textContent = 'This review can\'t be finalised';
       msgEl.textContent = 'Current status: ' + review.status + '. Please contact HR if you expected to be able to finalise this review.';
@@ -2525,6 +2627,11 @@
     if (misses.length) { showErrorBanner(misses); return; }
     hideErrorBanner();
 
+    // Amend flow: validation passed, but instead of POSTing right away we open
+    // the reason modal so we can capture *why* this finalised review is being
+    // edited. The modal's confirm handler does the actual POST.
+    if (currentMode === 'amend') { openAmendModal(); return; }
+
     const errorTx = document.getElementById('msg-error-text');
     const btn     = document.getElementById('submit-btn');
     const name     = document.getElementById('fname').value.trim();
@@ -2757,6 +2864,51 @@
     } catch (err) {
       alert('Could not send back: ' + err.message);
       btn.disabled = false; btn.textContent = 'Send back';
+    }
+  }
+
+  // --- Amend (post-finalisation edit) modal ---
+  function openAmendModal() {
+    document.getElementById('amend-reason').value = '';
+    document.getElementById('amend-err').style.display = 'none';
+    document.getElementById('modal-backdrop').classList.add('show');
+    document.getElementById('amend-modal').classList.add('show');
+    setTimeout(() => document.getElementById('amend-reason').focus(), 50);
+  }
+  function closeAmendModal() {
+    document.getElementById('modal-backdrop').classList.remove('show');
+    document.getElementById('amend-modal').classList.remove('show');
+  }
+  async function confirmAmend() {
+    const reason = document.getElementById('amend-reason').value.trim();
+    if (reason.length < 5) { document.getElementById('amend-err').style.display = 'block'; return; }
+    const btn = document.getElementById('amend-confirm');
+    const origLabel = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner" style="margin-right:0;"></span> Saving…';
+    try {
+      const res = await callScript({ method: 'POST', body: JSON.stringify({
+        kind: 'manager_amend',
+        reviewId: currentReview.reviewId,
+        manager: buildManagerPayload(),
+        reason: reason
+      })});
+      if (!res.success) throw new Error(res.error);
+      closeAmendModal();
+      // Lock the form and surface a clear success state so the manager knows the
+      // edit went through (and that the employee was notified).
+      const successEl = document.getElementById('msg-success');
+      successEl.firstElementChild.nextElementSibling.textContent =
+        'Edit saved. The employee has been notified by email.';
+      successEl.classList.add('show');
+      const sb = document.getElementById('submit-btn');
+      sb.innerHTML = '<svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg> Saved';
+      sb.disabled = true;
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (err) {
+      alert('Could not save edit: ' + err.message);
+      btn.disabled = false;
+      btn.innerHTML = origLabel;
     }
   }
 
