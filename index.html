@@ -555,9 +555,15 @@
   body.demo-mode .param-name-btn { pointer-events: auto; cursor: pointer; }
 
   body.mode-manager .section.self-only input,
-  body.mode-manager .section.self-only select,
-  body.mode-manager .section.self-only textarea {
+  body.mode-manager .section.self-only select {
     pointer-events: none; background: var(--surface-warm); color: var(--text2);
+  }
+  /* Textareas keep pointer-events on so the manager can scroll long answers
+     (or use the resize handle to expand the box). Read-only behaviour is
+     enforced by the `readonly` attribute we set in prefillSelf. */
+  body.mode-manager .section.self-only textarea {
+    background: var(--surface-warm); color: var(--text2);
+    cursor: text;
   }
   body.mode-manager .section.self-only .btn-add,
   body.mode-manager .section.self-only .obj-remove { display: none; }
@@ -601,9 +607,14 @@
      hides the send-back path (review is past send-back stage) and the save-later
      button (the edit is single-shot, no draft autosave needed). */
   body.mode-amend .section.self-only input,
-  body.mode-amend .section.self-only select,
-  body.mode-amend .section.self-only textarea {
+  body.mode-amend .section.self-only select {
     pointer-events: none; background: var(--surface-warm); color: var(--text2);
+  }
+  /* Same scroll fix as manager mode — textareas stay interactive so long
+     answers can be scrolled or the box can be resized. */
+  body.mode-amend .section.self-only textarea {
+    background: var(--surface-warm); color: var(--text2);
+    cursor: text;
   }
   body.mode-amend .section.self-only .btn-add,
   body.mode-amend .section.self-only .obj-remove { display: none; }
@@ -1593,7 +1604,7 @@
 <script>
   // ============================================================
   const SCRIPT_URL    = 'https://script.google.com/macros/s/AKfycbz3Ps8YqrKEyRmD-FQx-FBjbovGv_OlUMrUrRIe2vqiy-aWRaH24wN_mUyB8zzEf_UMwQ/exec';
-  const VIEW_PASSWORD = 'Power@2026'; 
+  const VIEW_PASSWORD = 'Power@2026';  
   // ============================================================
 
   const PARAMS = [
@@ -1986,6 +1997,16 @@
     setTA('qLongTerm',    self.longTerm);
     setTA('qCareerScope', self.careerScope);
     setTA('qOther',       self.otherComments);
+    // In manager and amend modes, mark all employee-side textareas (Part B
+    // narratives + objective comments) as read-only. Combined with the CSS
+    // change that restored pointer-events on these textareas, this lets the
+    // manager scroll inside long answers (or grab the resize handle) while
+    // still preventing accidental typing.
+    if (currentMode === 'manager' || currentMode === 'amend') {
+      document.querySelectorAll('.section.self-only textarea').forEach(function (t) {
+        t.readOnly = true;
+      });
+    }
     updateStepper();
   }
 
