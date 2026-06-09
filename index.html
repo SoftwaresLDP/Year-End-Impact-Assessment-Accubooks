@@ -1079,6 +1079,125 @@
   body:not(.mode-submit):not(.mode-manager) .btn-save-later,
   body:not(.mode-submit):not(.mode-manager) .draft-indicator { display: none !important; }
 
+  /* ============================================================
+     Per-review print button on the results cards (visible on screen,
+     hidden in print). Placed next to the time stamp in the resp-top row.
+     ============================================================ */
+  .card-print-btn {
+    background: none; border: 1px solid var(--border2); border-radius: 4px;
+    padding: 4px 8px; font-size: 11px; color: var(--text2); cursor: pointer;
+    display: inline-flex; align-items: center; gap: 4px; font-family: inherit;
+    transition: background 0.12s, border-color 0.12s;
+    margin-left: 8px;
+  }
+  .card-print-btn:hover { background: var(--surface-warm); border-color: var(--border-strong); color: var(--text); }
+  .card-print-btn svg { width: 11px; height: 11px; stroke: currentColor; stroke-width: 1.8; fill: none; }
+
+  /* ============================================================
+     Print stylesheet — used by both the global "Print" button (renders all
+     filtered reviews) and the per-review print buttons (renders just one).
+     #print-area is hidden on screen and shown ONLY in print mode; the rest
+     of the page is hidden during print so the layout is clean.
+     ============================================================ */
+  #print-area { display: none; }
+
+  @media print {
+    /* Hide the entire app and only show #print-area. Using display:none
+       (not visibility:hidden) keeps the printed page from inheriting any
+       layout from the form. */
+    body > *:not(#print-area) { display: none !important; }
+    body > #print-area { display: block !important; }
+    body { background: #FFFFFF !important; color: #1A1A1A !important;
+           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif !important; }
+
+    @page { size: A4; margin: 14mm 12mm 14mm 12mm; }
+
+    /* One review per page. Stay together when possible. */
+    .pr-review { page-break-after: always; page-break-inside: auto; }
+    .pr-review:last-child { page-break-after: auto; }
+
+    /* Letterhead at the top of each review's first page. Accubooks navy accent. */
+    .pr-letterhead {
+      display: flex; align-items: center; justify-content: space-between;
+      padding-bottom: 10px; margin-bottom: 16px;
+      border-bottom: 2px solid #1B3A6B;
+    }
+    .pr-letterhead-left { display: flex; align-items: center; gap: 12px; }
+    .pr-letterhead img { height: 36px; width: auto; max-width: 140px; object-fit: contain; }
+    .pr-letterhead-title { font-size: 16pt; font-weight: 600; color: #1B3A6B; letter-spacing: 0.02em; line-height: 1.1; }
+    .pr-letterhead-sub   { font-size: 9pt; color: #555; margin-top: 2px; letter-spacing: 0.06em; text-transform: uppercase; }
+    .pr-letterhead-right { font-size: 9pt; color: #555; text-align: right; line-height: 1.4; }
+
+    /* Employee info bar. */
+    .pr-emp-name { font-size: 20pt; font-weight: 600; color: #1A1A1A; margin: 0 0 4px; line-height: 1.15; }
+    .pr-emp-meta { font-size: 10pt; color: #555; margin: 0 0 14px; }
+    .pr-emp-meta > span { display: inline-block; margin-right: 12px; }
+    .pr-emp-meta strong { color: #1A1A1A; font-weight: 500; }
+
+    /* Overall band hero card. Navy background, white text. */
+    .pr-hero {
+      background: #1B3A6B; color: #FBF9F4; border-radius: 6px;
+      padding: 14px 18px; margin-bottom: 16px;
+      display: flex; align-items: center; justify-content: space-between; gap: 16px;
+      page-break-inside: avoid;
+      -webkit-print-color-adjust: exact; print-color-adjust: exact;
+    }
+    .pr-hero-eyebrow { font-size: 8.5pt; opacity: 0.85; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 3px; }
+    .pr-hero-band    { font-size: 14pt; font-weight: 600; line-height: 1.2; }
+    .pr-hero-note    { font-size: 9pt; opacity: 0.9; margin-top: 4px; line-height: 1.45; max-width: 380px; }
+    .pr-hero-score   { font-size: 28pt; font-weight: 600; white-space: nowrap; line-height: 1; }
+
+    /* Section headings. */
+    .pr-section-h {
+      font-size: 12pt; font-weight: 600; color: #1A1A1A;
+      margin: 4px 0 10px; padding-bottom: 6px;
+      border-bottom: 1px solid #D7D2C6;
+    }
+    .pr-section-sub { font-size: 9pt; color: #666; margin: 0 0 12px; }
+
+    /* Manager feedback — parameter cards. */
+    .pr-param {
+      background: #FBF9F4; border-radius: 5px; padding: 10px 12px; margin-bottom: 7px;
+      page-break-inside: avoid;
+      -webkit-print-color-adjust: exact; print-color-adjust: exact;
+    }
+    .pr-param-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 4px; }
+    .pr-param-label { font-size: 11pt; font-weight: 600; color: #1A1A1A; }
+    .pr-param-weight { font-size: 9pt; color: #666; font-weight: 400; }
+    .pr-param-score  { font-size: 9.5pt; font-weight: 600; white-space: nowrap; }
+    .pr-param-chip   { background: #FFFFFF; border: 1px solid #D7D2C6; border-radius: 3px; padding: 1px 6px; margin-right: 4px; color: #1A1A1A; }
+    .pr-param-just-label { font-size: 8.5pt; color: #666; margin: 4px 0 1px; }
+    .pr-param-just { font-size: 10pt; color: #1A1A1A; line-height: 1.45; }
+    .pr-section-tail { height: 10px; }
+
+    /* Self-assessment — objectives + Q&A. */
+    .pr-obj { background: #FBF9F4; border-radius: 5px; padding: 9px 12px; margin-bottom: 6px;
+              page-break-inside: avoid;
+              -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .pr-obj-num   { font-size: 8pt; color: #666; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 2px; }
+    .pr-obj-title { font-size: 10.5pt; font-weight: 600; color: #1A1A1A; }
+    .pr-obj-meta  { font-size: 9.5pt; color: #555; font-weight: 400; }
+    .pr-obj-body  { font-size: 10pt; color: #1A1A1A; margin-top: 3px; line-height: 1.45; }
+
+    .pr-qa { margin-bottom: 10px; page-break-inside: avoid; }
+    .pr-qa-q { font-size: 9.5pt; color: #555; margin-bottom: 3px; }
+    .pr-qa-a { font-size: 10pt; color: #1A1A1A; background: #FBF9F4; border-radius: 5px; padding: 8px 11px; line-height: 1.45;
+               -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+    /* Audit log. */
+    .pr-audit { background: #FFF7E6; border: 1px solid #F0D9A1; border-radius: 5px;
+                padding: 10px 12px; margin-top: 12px;
+                -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .pr-audit-h { font-size: 11pt; font-weight: 600; color: #7A5A14; margin: 0 0 6px; }
+    .pr-audit-entry { font-size: 9.5pt; color: #4F3B0A; margin-bottom: 8px; line-height: 1.45; }
+    .pr-audit-entry:last-child { margin-bottom: 0; }
+    .pr-audit-ts { font-weight: 600; color: #4F3B0A; }
+    .pr-audit-changes { font-size: 9pt; color: #6B5210; margin-top: 2px; }
+
+    /* Footer band at bottom of each review's content. */
+    .pr-foot { margin-top: 14px; padding-top: 8px; border-top: 1px solid #D7D2C6;
+               font-size: 8.5pt; color: #666; display: flex; justify-content: space-between; }
+  }
 </style>
 </head>
 <body class="role-self">
@@ -1569,6 +1688,10 @@
             <svg viewBox="0 0 24 24"><path d="M12 3v12m-5-5l5 5 5-5M5 21h14"/></svg>
             Export CSV
           </button>
+          <button class="btn-export" id="print-btn" title="Print all visible reviews">
+            <svg viewBox="0 0 24 24"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z"/></svg>
+            Print
+          </button>
           <button class="btn-export" id="lock-btn" title="Lock this view">
             <svg viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
             Lock
@@ -1604,7 +1727,7 @@
 <script>
   // ============================================================
   const SCRIPT_URL    = 'https://script.google.com/macros/s/AKfycbz3Ps8YqrKEyRmD-FQx-FBjbovGv_OlUMrUrRIe2vqiy-aWRaH24wN_mUyB8zzEf_UMwQ/exec';
-  const VIEW_PASSWORD = 'Power@2026';  
+  const VIEW_PASSWORD = 'Power@2026';   
   // ============================================================
 
   const PARAMS = [
@@ -1733,6 +1856,16 @@
   document.getElementById('add-obj').addEventListener('click', () => addObjective());
   document.getElementById('submit-btn').addEventListener('click', submitForm);
   document.getElementById('export-btn').addEventListener('click', exportCSV);
+  document.getElementById('print-btn').addEventListener('click', printVisibleReviews);
+  // Delegated click handler for the per-card "Print this review" button.
+  // The button is rendered inside renderUnifiedCard each time the list refreshes,
+  // so a single delegated listener on #results-list survives all re-renders.
+  document.getElementById('results-list').addEventListener('click', function (ev) {
+    const btn = ev.target.closest('[data-print-rid]');
+    if (!btn) return;
+    ev.preventDefault();
+    printSingleReview(btn.getAttribute('data-print-rid'));
+  });
   document.getElementById('filter-input').addEventListener('input', renderResults);
   document.getElementById('lock-btn').addEventListener('click', lockResults);
   document.getElementById('lock-form').addEventListener('submit', tryUnlock);
@@ -3006,7 +3139,20 @@
       ratings: (r.manager && r.manager.ratings) || {},
       overall: r.overall || 0
     };
-    return renderSelfCard(selfCompat) + renderMgrCard(mgrCompat);
+    // Wrap the pair with a small toolbar so the user can print just this one
+    // review without printing the rest. data-rid carries the reviewId so the
+    // click handler can look it up in cachedReviews and render the print body.
+    const printBtn = '<div style="display:flex;justify-content:flex-end;margin-bottom:6px;">' +
+      '<button class="card-print-btn" type="button" data-print-rid="' + esc(r.reviewId) + '">' +
+        '<svg viewBox="0 0 24 24"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z"/></svg>' +
+        'Print this review' +
+      '</button>' +
+    '</div>';
+    return '<div class="review-pair" data-rid="' + esc(r.reviewId) + '">' +
+             printBtn +
+             renderSelfCard(selfCompat) +
+             renderMgrCard(mgrCompat) +
+           '</div>';
   }
 
   function renderSelfCard(r) {
@@ -3171,6 +3317,189 @@
     a.href = URL.createObjectURL(blob);
     a.download = 'performance_reviews.csv';
     a.click();
+  }
+
+  // ============================================================
+  // Print — global "Print" button and per-card "Print this review" buttons.
+  // Both build the same HTML structure into #print-area and call
+  // window.print(). The print stylesheet (in <style>) hides everything
+  // except #print-area, so the rendered HTML drives the printed page 1:1.
+  // ============================================================
+  function printVisibleReviews() {
+    const q = document.getElementById('filter-input').value.trim().toLowerCase();
+    const match = function (r) {
+      return !q || [r.employeeName, r.employeeEmail, r.department, r.role, r.period, r.managerName]
+        .some(function (v) { return String(v || '').toLowerCase().includes(q); });
+    };
+    const visible = cachedReviews.filter(match).sort(function (a, b) {
+      return (b.completedAt || '').localeCompare(a.completedAt || '');
+    });
+    if (!visible.length) { alert('No reviews to print. Adjust the filter and try again.'); return; }
+    preparePrintArea(visible);
+    setTimeout(function () { window.print(); }, 60);
+  }
+
+  function printSingleReview(reviewId) {
+    const r = cachedReviews.find(function (x) { return String(x.reviewId) === String(reviewId); });
+    if (!r) { alert('Could not find that review to print.'); return; }
+    preparePrintArea([r]);
+    setTimeout(function () { window.print(); }, 60);
+  }
+
+  function preparePrintArea(reviews) {
+    const area = document.getElementById('print-area');
+    area.innerHTML = reviews.map(buildPrintReviewHtml).join('');
+  }
+
+  function buildPrintReviewHtml(r) {
+    // Read the embedded brand logo from the page hero so the letterhead
+    // matches whatever the user is looking at.
+    const heroLogo = document.getElementById('hero-logo');
+    const logoSrc  = heroLogo ? heroLogo.getAttribute('src') : '';
+    const overall  = Number(r.overall) || 0;
+    const band     = RATING_DESC[Math.max(1, Math.min(5, Math.round(overall)))] || RATING_DESC[3];
+    const reviewer = r.reviewerName || (r.manager && r.manager.reviewerName) || r.managerName || '';
+    const mgrRatings = (r.manager && r.manager.ratings) || {};
+    const self = r.self || {};
+    const editHistory = Array.isArray(r.editHistory) ? r.editHistory : [];
+
+    const letterhead =
+      '<header class="pr-letterhead">' +
+        '<div class="pr-letterhead-left">' +
+          (logoSrc ? '<img src="' + logoSrc + '" alt="logo" />' : '') +
+          '<div>' +
+            '<div class="pr-letterhead-title">Performance Review</div>' +
+            '<div class="pr-letterhead-sub">' + esc(r.period || '') + '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="pr-letterhead-right">' +
+          'Finalised ' + esc(r.completedAt || '—') + '<br>' +
+          'Review ID: ' + esc(r.reviewId || '') +
+        '</div>' +
+      '</header>';
+
+    const empInfo =
+      '<div class="pr-emp-name">' + esc(r.employeeName) + '</div>' +
+      '<div class="pr-emp-meta">' +
+        '<span><strong>' + esc(r.department || '—') + '</strong> · ' + esc(r.role || '—') + '</span>' +
+        '<span>' + esc(r.employeeEmail || '') + '</span>' +
+        '<span>Reviewed by <strong>' + esc(reviewer || '—') + '</strong></span>' +
+      '</div>';
+
+    const hero =
+      '<div class="pr-hero">' +
+        '<div>' +
+          '<div class="pr-hero-eyebrow">Overall rating</div>' +
+          '<div class="pr-hero-band">' + esc(band.label) + '</div>' +
+          '<div class="pr-hero-note">' + esc(band.note) + '</div>' +
+        '</div>' +
+        '<div class="pr-hero-score">' + (overall ? overall.toFixed(2) : '—') + '</div>' +
+      '</div>';
+
+    // Manager feedback — all 10 parameters, marked "Not rated" if missing.
+    const mgrFeedback =
+      '<h3 class="pr-section-h">Manager feedback</h3>' +
+      PARAMS.map(function (p) {
+        const rr = mgrRatings[p.key] || {};
+        const score = Number(rr.score) || 0;
+        const sBand = score ? RATING_DESC[score] : null;
+        const just  = String(rr.justification || '').trim();
+        return '<div class="pr-param">' +
+          '<div class="pr-param-head">' +
+            '<div><span class="pr-param-label">' + esc(p.label) + '</span> ' +
+              '<span class="pr-param-weight">(' + (p.weight * 100).toFixed(p.weight < 0.1 ? 1 : 0) + '% weight)</span>' +
+            '</div>' +
+            (score
+              ? '<div class="pr-param-score">' +
+                  '<span class="pr-param-chip">' + score + ' / 5</span>' +
+                  (sBand ? esc(sBand.label) : '') +
+                '</div>'
+              : '<div class="pr-param-weight">Not rated</div>') +
+          '</div>' +
+          (just
+            ? '<div class="pr-param-just-label">Justification</div>' +
+              '<div class="pr-param-just">' + esc(just) + '</div>'
+            : '') +
+        '</div>';
+      }).join('') +
+      '<div class="pr-section-tail"></div>';
+
+    // Self-assessment — objectives then narrative Q/A. Skip empty answers.
+    let selfBlock = '';
+    const hasObjs = self.objectives && self.objectives.length;
+    const qa = [
+      ['What problems have you encountered meeting your objectives?',         self.problems],
+      ['Are there any particular areas of training or development you need?', self.training],
+      ['Are you happy with your team?',                                       self.teamHappy],
+      ['Do you have any conflicts with team members?',                        self.teamConflicts],
+      ['Does your team accept your ideas and recognise your contribution?',   self.teamRecognition],
+      ['Where do you see yourself in the team long term?',                    self.longTerm],
+      ['Do you think you have the scope to realise your career plans here?',  self.careerScope],
+      ['Any other comments',                                                  self.otherComments]
+    ].filter(function (p) { return p[1] && String(p[1]).trim(); });
+    if (hasObjs || qa.length) {
+      selfBlock +=
+        '<h3 class="pr-section-h">Employee\'s self-assessment</h3>' +
+        '<div class="pr-section-sub">What ' + esc(r.employeeName || 'the employee') + ' submitted at the start of the cycle.</div>';
+      if (hasObjs) {
+        self.objectives.forEach(function (o, i) {
+          selfBlock += '<div class="pr-obj">' +
+            '<div class="pr-obj-num">Objective ' + (i + 1) + '</div>' +
+            '<div class="pr-obj-title">' + esc(o.text || '—') +
+              (o.status ? ' <span class="pr-obj-meta">— ' + esc(o.status) + '</span>' : '') +
+            '</div>' +
+            (o.comment ? '<div class="pr-obj-body">' + esc(o.comment) + '</div>' : '') +
+          '</div>';
+        });
+        selfBlock += '<div class="pr-section-tail"></div>';
+      }
+      qa.forEach(function (p) {
+        selfBlock += '<div class="pr-qa">' +
+          '<div class="pr-qa-q">' + esc(p[0]) + '</div>' +
+          '<div class="pr-qa-a">' + esc(p[1]) + '</div>' +
+        '</div>';
+      });
+    }
+
+    // Edit history — only render if at least one amendment exists. Each
+    // entry shows ts, reviewer, reason, score deltas.
+    let auditBlock = '';
+    if (editHistory.length) {
+      auditBlock = '<div class="pr-audit">' +
+        '<div class="pr-audit-h">Edit history (' + editHistory.length + ')</div>' +
+        editHistory.map(function (e) {
+          const changesText = Array.isArray(e.scoreChanges) && e.scoreChanges.length
+            ? 'Score changes: ' + e.scoreChanges.map(function (c) {
+                const p = PARAMS.find(function (x) { return x.key === c.key; });
+                return (p ? p.label : c.key) + ' (' + c.from + ' → ' + c.to + ')';
+              }).join(', ')
+            : '';
+          return '<div class="pr-audit-entry">' +
+            '<div class="pr-audit-ts">' + esc(e.ts || '') + ' — ' + esc(e.reviewerName || '') + '</div>' +
+            '<div>Reason: ' + esc(e.reason || '') + '</div>' +
+            (typeof e.overallBefore === 'number' && typeof e.overallAfter === 'number'
+              ? '<div class="pr-audit-changes">Overall: ' + Number(e.overallBefore).toFixed(2) + ' → ' + Number(e.overallAfter).toFixed(2) + (changesText ? ' · ' + changesText : '') + '</div>'
+              : (changesText ? '<div class="pr-audit-changes">' + changesText + '</div>' : '')) +
+          '</div>';
+        }).join('') +
+      '</div>';
+    }
+
+    const footer =
+      '<div class="pr-foot">' +
+        '<span>' + esc(r.employeeName) + ' · ' + esc(r.period || '') + '</span>' +
+        '<span>Confidential — for HR use</span>' +
+      '</div>';
+
+    return '<section class="pr-review">' +
+             letterhead +
+             empInfo +
+             hero +
+             mgrFeedback +
+             selfBlock +
+             auditBlock +
+             footer +
+           '</section>';
   }
 
   // ============================================================
@@ -3557,5 +3886,9 @@
   }
 
 </script>
+
+<!-- Print render target — populated by JS when the user clicks Print, then
+     window.print() is called. Hidden on screen via CSS, shown only in print. -->
+<div id="print-area" aria-hidden="true"></div>
 </body>
 </html>
