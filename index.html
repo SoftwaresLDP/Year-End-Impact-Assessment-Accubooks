@@ -1727,7 +1727,7 @@
 <script>
   // ============================================================
   const SCRIPT_URL    = 'https://script.google.com/macros/s/AKfycbz3Ps8YqrKEyRmD-FQx-FBjbovGv_OlUMrUrRIe2vqiy-aWRaH24wN_mUyB8zzEf_UMwQ/exec';
-  const VIEW_PASSWORD = 'Power@2026';   
+  const VIEW_PASSWORD = 'Power@2026';   // ← change this to your desired password
   // ============================================================
 
   const PARAMS = [
@@ -3867,17 +3867,21 @@
       const res = await callScript({ method: 'POST', body: JSON.stringify({
         kind: 'manager_draft_save',
         reviewId: currentReview.reviewId,
-        manager: snap
+        manager: snap,
+        // Manual save (button press) — ask the backend to also email a link.
+        // Auto-save calls (saveManagerDraftServer) omit this flag, so they
+        // never spam the reviewer's inbox.
+        sendEmail: true
       }) });
       if (!res.success) throw new Error(res.error || 'Failed to save draft');
       // Mirror to localStorage so the same browser sees it on refresh too.
       try { localStorage.setItem(mgrDraftKey(currentReview.reviewId), JSON.stringify(snap)); } catch (e) {}
       showDraftIndicator(snap._savedAt, currentReview.employeeName);
-      btn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg> Draft saved';
+      btn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg> Draft saved · email sent';
       setTimeout(function () {
         btn.disabled = false;
         btn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save my draft now';
-      }, 2500);
+      }, 3200);
     } catch (err) {
       alert('Could not save draft: ' + (err && err.message ? err.message : err));
       btn.disabled = false;
