@@ -3503,6 +3503,193 @@
   }
 
   // ============================================================
+  // Live print — Ctrl+P / Cmd+P on the form (before submission) builds
+  // a clean print snapshot of whatever's currently filled in. We hook
+  // into window.onbeforeprint, populate #print-area with a snapshot of
+  // the live form state, and let the existing print stylesheet do the
+  // rest. afterprint clears the print-area so the form stays normal.
+  // ============================================================
+
+  function buildLivePrintHtml() {
+    // Mode-aware title and notes so the printout is clearly labelled as
+    // a draft preview (not the official record).
+    const isManager = currentMode === 'manager';
+    const isAmend   = currentMode === 'amend';
+    const isEdit    = currentMode === 'edit';
+    const isSubmit  = currentMode === 'submit';
+    let modeLabel = 'Self-assessment draft';
+    if (isManager) modeLabel = 'Manager review draft';
+    else if (isAmend) modeLabel = 'Manager amend draft';
+    else if (isEdit) modeLabel = 'Self-assessment (rectification) draft';
+
+    const heroLogo = document.getElementById('hero-logo');
+    const logoSrc  = heroLogo ? heroLogo.getAttribute('src') : '';
+    const period   = 'FY 2025-26';
+
+    const get = function (id) { const el = document.getElementById(id); return el ? String(el.value || '').trim() : ''; };
+    const empName  = get('fname');
+    const empUser  = get('femail').toLowerCase();
+    const empEmail = empUser ? empUser.replace(/\.+$/, '') + '@accubooks.in' : '';
+    const empDept  = get('fdept');
+    const empRole  = get('frole');
+    const reviewer = get('freviewer');
+
+    const letterhead =
+      '<header class="pr-letterhead">' +
+        '<div class="pr-letterhead-left">' +
+          (logoSrc ? '<img src="' + logoSrc + '" alt="logo" />' : '') +
+          '<div>' +
+            '<div class="pr-letterhead-title">Performance Review</div>' +
+            '<div class="pr-letterhead-sub">' + esc(period) + ' · ' + esc(modeLabel) + '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="pr-letterhead-right">' +
+          'Draft preview · ' + esc(new Date().toLocaleString()) + '<br>' +
+          '<em>Not yet submitted</em>' +
+        '</div>' +
+      '</header>';
+
+    const empInfo =
+      '<div class="pr-emp-name">' + esc(empName || '—') + '</div>' +
+      '<div class="pr-emp-meta">' +
+        '<span><strong>' + esc(empDept || '—') + '</strong> · ' + esc(empRole || '—') + '</span>' +
+        (empEmail ? '<span>' + esc(empEmail) + '</span>' : '') +
+        (isManager || isAmend ? '<span>Reviewed by <strong>' + esc(reviewer || '—') + '</strong></span>' : '') +
+      '</div>';
+
+    let selfBlock = '';
+    const objBlocks = Array.from(document.querySelectorAll('#objs-wrap .obj-block'));
+    const objectives = objBlocks.map(function (b) {
+      const sel = b.querySelector('.obj-select');
+      const oth = b.querySelector('.obj-other');
+      const status = b.querySelector('.obj-status');
+      const cmt = b.querySelector('.obj-comment');
+      const selVal = sel ? sel.value : '';
+      const text = (selVal === '__other__' && oth) ? oth.value.trim() : selVal;
+      return { text: text, status: status ? status.value : '', comment: cmt ? cmt.value.trim() : '' };
+    }).filter(function (o) { return o.text || o.status || o.comment; });
+
+    const qa = [
+      ['What problems have you encountered meeting your objectives?',         get('qProblems')],
+      ['Are there any particular areas of training or development you need?', get('qTraining')],
+      ['Are you happy with your team?',                                       get('qTeamHappy')],
+      ['Do you have any conflicts with team members?',                        get('qConflicts')],
+      ['Does your team accept your ideas and recognise your contribution?',   get('qRecognition')],
+      ['Where do you see yourself in the team long term?',                    get('qLongTerm')],
+      ['Do you think you have the scope to realise your career plans here?',  get('qCareerScope')],
+      ['Any other comments',                                                  get('qOther')]
+    ].filter(function (p) { return p[1] && p[1].trim(); });
+
+    if (objectives.length || qa.length) {
+      const heading = (isManager || isAmend) ? 'Employee\'s self-assessment' : 'Self-assessment';
+      selfBlock = '<h3 class="pr-section-h">' + heading + '</h3>';
+      objectives.forEach(function (o, i) {
+        selfBlock += '<div class="pr-obj">' +
+          '<div class="pr-obj-num">Objective ' + (i + 1) + '</div>' +
+          '<div class="pr-obj-title">' + esc(o.text || '—') +
+            (o.status ? ' <span class="pr-obj-meta">— ' + esc(o.status) + '</span>' : '') +
+          '</div>' +
+          (o.comment ? '<div class="pr-obj-body">' + esc(o.comment) + '</div>' : '') +
+        '</div>';
+      });
+      if (objectives.length) selfBlock += '<div class="pr-section-tail"></div>';
+      qa.forEach(function (p) {
+        selfBlock += '<div class="pr-qa">' +
+          '<div class="pr-qa-q">' + esc(p[0]) + '</div>' +
+          '<div class="pr-qa-a">' + esc(p[1]) + '</div>' +
+        '</div>';
+      });
+    }
+
+    let mgrFeedback = '';
+    if (isManager || isAmend) {
+      mgrFeedback = '<h3 class="pr-section-h">Manager feedback</h3>';
+      const totalParams = PARAMS.length;
+      let ratedSoFar = 0;
+      let runningOverall = 0;
+      PARAMS.forEach(function (p) {
+        const score = ratings[p.key] || 0;
+        if (score) { ratedSoFar++; runningOverall += score * p.weight; }
+      });
+      if (ratedSoFar > 0) {
+        const runningBand = RATING_DESC[Math.max(1, Math.min(5, Math.round(runningOverall)))] || RATING_DESC[3];
+        const heroDraft =
+          '<div class="pr-hero">' +
+            '<div>' +
+              '<div class="pr-hero-eyebrow">Running overall (' + ratedSoFar + ' / ' + totalParams + ' rated)</div>' +
+              '<div class="pr-hero-band">' + esc(runningBand.label) + '</div>' +
+              '<div class="pr-hero-note">' + esc(runningBand.note) + '</div>' +
+            '</div>' +
+            '<div class="pr-hero-score">' + runningOverall.toFixed(2) + '</div>' +
+          '</div>';
+        mgrFeedback = heroDraft + mgrFeedback;
+      }
+      PARAMS.forEach(function (p) {
+        const score = Number(ratings[p.key]) || 0;
+        const taEl  = document.querySelector('.just-text[data-key="' + p.key + '"]');
+        const just  = taEl ? taEl.value.trim() : '';
+        const sBand = score ? RATING_DESC[score] : null;
+        mgrFeedback +=
+          '<div class="pr-param">' +
+            '<div class="pr-param-head">' +
+              '<div><span class="pr-param-label">' + esc(p.label) + '</span> ' +
+                '<span class="pr-param-weight">(' + (p.weight * 100).toFixed(p.weight < 0.1 ? 1 : 0) + '% weight)</span>' +
+              '</div>' +
+              (score
+                ? '<div class="pr-param-score">' +
+                    '<span class="pr-param-chip">' + score + ' / 5</span>' +
+                    (sBand ? esc(sBand.label) : '') +
+                  '</div>'
+                : '<div class="pr-param-weight">Not rated yet</div>') +
+            '</div>' +
+            (just
+              ? '<div class="pr-param-just-label">Justification</div>' +
+                '<div class="pr-param-just">' + esc(just) + '</div>'
+              : '') +
+          '</div>';
+      });
+      mgrFeedback += '<div class="pr-section-tail"></div>';
+    }
+
+    const footer =
+      '<div class="pr-foot">' +
+        '<span>' + esc(empName || 'Draft') + ' · ' + esc(period) + '</span>' +
+        '<span>Draft preview — not yet submitted</span>' +
+      '</div>';
+
+    return '<section class="pr-review">' +
+             letterhead +
+             empInfo +
+             (mgrFeedback || '') +
+             selfBlock +
+             footer +
+           '</section>';
+  }
+
+  window.addEventListener('beforeprint', function () {
+    const area = document.getElementById('print-area');
+    if (!area) return;
+    if (area.innerHTML.trim()) return;
+    const printable = (currentMode === 'submit' || currentMode === 'manager' ||
+                       currentMode === 'edit' || currentMode === 'amend');
+    if (!printable) return;
+    try {
+      area.innerHTML = buildLivePrintHtml();
+      area.dataset.autoPopulated = '1';
+    } catch (e) {
+      console.error('Live print build failed:', e);
+    }
+  });
+  window.addEventListener('afterprint', function () {
+    const area = document.getElementById('print-area');
+    if (!area) return;
+    if (area.dataset.autoPopulated === '1') {
+      area.innerHTML = '';
+      delete area.dataset.autoPopulated;
+    }
+  });
+
+  // ============================================================
   // Draft autosave — localStorage (silent) + optional server-side draft (Save for later)
   // ============================================================
   // (Draft state moved to the top so init code can use it safely.)
